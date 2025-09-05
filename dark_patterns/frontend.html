@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Dark Pattern Detector</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    table { border-collapse: collapse; width: 100%; margin-top: 20px; }
+    th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+    th { background: #f4f4f4; }
+    #chartContainer { width: 60%; margin-top: 20px; }
+    .summary { margin-top: 20px; padding: 10px; background: #f9f9f9; border: 1px solid #ddd; }
+  </style>
+</head>
+<body>
+  <h2>Dark Pattern Detector</h2>
+  <input type="text" id="urlInput" placeholder="Enter website URL" style="width:300px;">
+  <button onclick="analyze()">Analyze</button>
+
+  <div class="summary" id="summaryBox"></div>
+
+  <h3>Label Counts (Textual Patterns)</h3>
+  <div id="chartContainer">
+    <canvas id="labelChart"></canvas>
+  </div>
+
+  <h3>Detailed Text Predictions</h3>
+  <table id="resultsTable">
+    <thead>
+      <tr>
+        <th>Text Snippet</th>
+        <th>Predicted Label</th>
+        <th>Confidence</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <h3>UI Manipulation Patterns</h3>
+  <table id="uiTable">
+    <thead>
+      <tr>
+        <th>Detected Pattern</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <script>
+  let chartInstance = null;
+
+  async function analyze() {
+    const url = document.getElementById("urlInput").value;
+
+    const res = await fetch("http://127.0.0.1:8000/predict/url", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url: url })
+    });
+
+    const data = await res.json();
+    const analysis = data.analysis || {};
+    const predictions = (analysis.ml_predictions && analysis.ml_predictions.all_predictions) || [];
+    const uiPatterns = analysis.ui_patterns || [];
+    const summary = data.summary || {};
+
+    // Count categories
+    const counts = {};
+    predictions.forEach(pred => {
+      counts[pred.category] = (counts[pred.category] || 0) + 1;
+    });
+
+    // Update summary
+    document.getElementById("summaryBox").innerHTML = `
+      <strong>Summary:</strong><br>
+      Total texts analyzed: ${analysis.total_texts_analyzed || 0}<br>
+      UI patterns found: ${summary.ui_patterns_found || 0}<br>
+      High-confidence detections: ${summary.high_confidence_ml_detections || 0}<br>
+      Most common category: ${summary.most_common_category || "N/A"}
+    `;
+
+    // Update chart
+    const ctx = document.getElementById("labelChart").getContext("2d");
+    if (chartInstance) {
+      chartInstance.destroy();
+    }
+    chartInstance = new Chart(ctx, {
+      type: "bar",
+      data: {
+        labels: Object.keys(counts),
+        datasets: [{
+          label: "Count",
+          data: Object.values(counts),
+          backgroundColor: "rgba(54, 162, 235, 0.6)"
+        }]
+      }
+    });
+
+    // Update text predictions table
+    const tbody = document.querySelector("#resultsTable tbody");
+    tbody.innerHTML = "";
+    predictions.forEach(pred => {
+      const row = document.createElement("tr");
+      row.innerHTML = `
+        <td>${pred.text.substring(0, 80)}...</td>
+        <td>${pred.category}</td>
+        <td>${(pred.confidence * 100).toFixed(2)}%</td>
+      `;
+      tbody.appendChild(row);
+    });
+
+    // Update UI patterns table
+    const uiBody = document.querySelector("#uiTable tbody");
+    uiBody.innerHTML = "";
+    uiPatterns.forEach(pattern => {
+      const row = document.createElement("tr");
+      row.innerHTML = `<td>${pattern.name} (${pattern.category})</td>`;
+      uiBody.appendChild(row);
+    });
+  }
+  </script>
+</body>
+</html>
