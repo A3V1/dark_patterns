@@ -60,7 +60,9 @@ LABEL_MAP = {
     3: "Sneaking",
     4: "Forced Action",
     5: "Misdirection",
-    6: "Nagging"
+    6: "Nagging",
+    7: "Urgency",
+    8: "Not Dark Pattern"
 }
 
 @dataclass
@@ -787,12 +789,14 @@ def predict_text(request: TextAnalysisRequest):
 def analyze_url_content(url: str):
     html, soup = fetch_url_content(url)
     texts = extract_text_elements(soup)
-    ml_predictions = [predict_text_ml(t) for t in texts[:50]]
+    all_ml_predictions = [predict_text_ml(t) for t in texts[:350]]
     ui_patterns = ui_detector.detect_patterns(soup, html, url)
+
+    dark_pattern_ml_predictions = [pred for pred in all_ml_predictions if pred["category"] != "Not Dark Pattern"]
 
     category_counts = {}
     high_conf = []
-    for pred in ml_predictions:
+    for pred in dark_pattern_ml_predictions:
         cat = pred["category"]
         conf = pred["confidence"]
         category_counts[cat] = category_counts.get(cat, 0) + 1
@@ -803,12 +807,12 @@ def analyze_url_content(url: str):
         "success": True,
         "url": url,
         "analysis": {
-            "total_texts_analyzed": len(ml_predictions),
+            "total_texts_analyzed": len(all_ml_predictions), # Only count dark patterns
             "ui_patterns": ui_patterns,
             "ml_predictions": {
                 "high_confidence": high_conf,
                 "category_distribution": category_counts,
-                "all_predictions": ml_predictions
+                "all_predictions": dark_pattern_ml_predictions # Only return dark patterns
             }
         },
         "summary": {

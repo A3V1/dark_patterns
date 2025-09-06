@@ -28,7 +28,7 @@ if "analysis" in data:
     if "ml_predictions" in analysis:
         ml_preds = analysis["ml_predictions"]["all_predictions"]
         print("\n--- Text Predictions ---")
-        for pred in ml_preds[:10]:  # show first 10
+        for pred in ml_preds[:15]:  # show first 10
             print(f"Snippet: {pred['text'][:80]}...")
             print(f"Category: {pred['category']}")
             print(f"Confidence: {pred['confidence']:.2f}")
